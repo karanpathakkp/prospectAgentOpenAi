@@ -31,7 +31,17 @@ Run the main script:
 
 ```bash
 python prospect.py
+python api.py
 ```
+ 
+## Sample cURL request
+curl -X POST "http://localhost:8000/prospect/search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company": "OpenAI",
+    "search_term": "R&D",
+    "max_profiles": 5
+  }'
 
 ## Project Structure
 
