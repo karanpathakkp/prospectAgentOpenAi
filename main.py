@@ -50,72 +50,21 @@ async def main(company: str, desired_profile: int, search_term: str):
         tools=[tavily_search, scrape_website],
     )
     
+    with open("prompt.txt", "r") as f:
+        prompts = f.read().split("\n---\n")
+        loop_agent_instructions = prompts[0].strip()
+        filter_agent_instructions = prompts[1].strip() if len(prompts) > 1 else ""
+
     loop_agent = Agent(
         name="LoopAgent",
-        #output_type=PositionTitle,
-        instructions=(
-            f"You are an agent that performs Tavily searches to find LinkedIn profiles and web profiles "
-            f"of individuals at {company}. When given a search query, perform a Tavily search and return "
-            f"the raw Tavily API response exactly as received. Do not modify, format, or summarize the results. "
-            f"Simply return the complete JSON response from the Tavily API with all the search results. "
-            f"Your output must be valid JSON that contains a 'results' key with an array of profile objects."
-            f"\n\nSEARCH REQUIREMENTS:"
-            f"\n- Find profiles of people working at {company} in the specified role"
-            f"\n- Extract detailed information about their experience, education, skills, and achievements"
-            f"\n- Focus on getting complete work history, not just current position"
-            f"\n- Look for leadership experience, technical skills, and innovation background"
-            f"\n- Ensure you get enough detail to assess their suitability for leadership/R&D roles"
-            f"\n- Do not return company pages, posts, or articles - only individual profiles"
-        ),
+        instructions=loop_agent_instructions,
         model="gpt-4o",
         tools=[tavily_search, scrape_website],
     )
     
     filter_agent = Agent(
         name="FilterAgent",
-        
-        instructions=(
-            f"You are an expert HR analyst and filtering agent specializing in identifying top leadership and R&D talent for {company}. "
-            f"You receive a list of LinkedIn profiles and must analyze each one comprehensively to select the {DESIRED_PROFILES} best candidates. "
-            f"\n\nANALYSIS CRITERIA:"
-            f"\n1. ROLE RELEVANCE (0-10): How well the person's current/previous roles align with {search_term}"
-            f"\n2. EXPERIENCE SCORE (0-10): Based on total years of experience, with bonus for relevant industry experience"
-            f"\n3. LEADERSHIP INDICATORS (0-10): Evidence of leadership roles, team management, strategic decision-making"
-            f"\n4. TECHNICAL/R&D SCORE (0-10): Technical skills, innovation experience, R&D background, patents, publications"
-            #f"\n5. COMPANY MATCH (0-10): How well their background aligns with {company}'s industry and culture"
-            f"\n\nSCORING METHODOLOGY:"
-            f"\n- Calculate a custom score (0-100) based on the above criteria"
-            f"\n- Ignore the original Tavily score completely"
-            f"\n- Weight: Role Relevance (25%), Experience (20%), Leadership (25%), Technical (20%), Company Match (10%)"
-            f"\n\nREQUIRED OUTPUT FORMAT:"
-            f"\nReturn a JSON array of {DESIRED_PROFILES} profiles with the following structure:"
-            f"\n{{\n"
-            f"  'title': 'Profile title',\n"
-            f"  'url': 'LinkedIn URL',\n"
-            f"  'content': 'Original content',\n"
-            f"  'score': [YOUR_CUSTOM_SCORE_0_100],\n"
-            f"  'role_relevance_score': [0-10],\n"
-            f"  'experience_score': [0-10],\n"
-            f"  'leadership_score': [0-10],\n"
-            f"  'technical_score': [0-10],\n"
-           
-            f"  'total_years_experience': [number],\n"
-            f"  'current_role': 'Current position title',\n"
-            f"  'previous_companies': ['company1', 'company2'],\n"
-            f"  'education': ['degree1', 'degree2'],\n"
-            f"  'skills': ['skill1', 'skill2'],\n"
-            f"  'analysis_notes': 'Your detailed analysis of why this person is a good fit'\n"
-            f"\n}}\n"
-            f"\nFILTERING RULES:"
-            f"\n- ONLY include individual LinkedIn profiles (not posts, articles, or company pages)"
-            f"\n- Prioritize profiles with clear leadership or technical leadership experience"
-            f"\n- Look for innovation, R&D, digital transformation, or strategic technology experience"
-            f"\n- Consider both current and previous roles for relevance"
-            f"\n- Analyze the content carefully to extract experience details, skills, and achievements"
-            f"\n- Provide detailed analysis_notes explaining your scoring rationale"
-            f"\n\nIMPORTANT: Extract as much information as possible from the content field to populate all the detailed fields. "
-            f"Be thorough in your analysis and provide specific reasons for your scoring decisions."
-        ),
+        instructions=filter_agent_instructions,
         model="gpt-4o"
     )
     
