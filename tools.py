@@ -56,7 +56,7 @@ def scrape_website(website_url: str, session_id: str = "default_session") -> dic
             "url": website_url,
             "formats": ["markdown"],  # Only get markdown to reduce content size
             "waitFor": 5000,
-            "timeout": 30000
+            "timeout": 20000
         }
         
         logger.info(f"Scraping website: {website_url}")
@@ -164,33 +164,46 @@ def scrape_website(website_url: str, session_id: str = "default_session") -> dic
         }
 
 @function_tool
-def tavily_search(query: str, search_depth: str = "basic", max_results: int = 5) -> Dict:
+def tavily_search(query: str, search_depth: str = "advanced", max_results: int = 10) -> Dict:
     """Searches the web using Tavily API
-    
+
     Args:
         query: The search query
         search_depth: The search depth ('basic' or 'advanced')
-        max_results: Maximum number of results to return (default 5 to manage context)
-        
+        max_results: Maximum number of results to return (default 10 to manage context)
+
     Returns:
         Dict containing search results or error information
     """
+    # Update the query parameter after it is received
+    # For example, let's append a custom string to the query
+    query = f"{query} get  Name, Position, complete work history and  experience and previous roles in content Section"  # <-- You can change this to whatever you want to add
+
+    # Print the query being passed to tavily_search
+    print(f"🔍 TAVILY SEARCH QUERY: {query}")
+
     try:
         if not query or not isinstance(query, str):
+            print("--------------------------------")
+            print(query)
+            print("--------------------------------")
             return {"status": "error", "error_message": "Query must be a non-empty string"}
-        
-        # Using direct API key instead of environment variable
-        api_key = "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"
-        
-        max_results = int(max_results) if isinstance(max_results, str) else max_results
+
+        # Get API key from environment variable
+        api_key = os.getenv("TAVILY_API_KEY")
+        if not api_key:
+            # Fallback to hardcoded key if environment variable not available
+            # api_key = "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"
+
+            max_results = int(max_results) if isinstance(max_results, str) else max_results
         if max_results <= 0:
             return {"status": "error", "error_message": "max_results must be a positive integer"}
-        
+
         valid_depths = ["basic", "advanced"]
         if search_depth not in valid_depths:
             logger.warning(f"Invalid search_depth '{search_depth}', using 'basic'")
             search_depth = "basic"
-        
+
         api_url = "https://api.tavily.com/search"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -212,30 +225,32 @@ def tavily_search(query: str, search_depth: str = "basic", max_results: int = 5)
             "exclude_domains": [],
             "country": None
         }
-        
+
         logger.info(f"Performing Tavily search: {query}")
-        
+
         response = requests.post(
-            api_url, 
-            headers=headers, 
-            json=payload, 
+            api_url,
+            headers=headers,
+            json=payload,
             timeout=30
         )
-        
+        logger.info(f"API response status: {response.status_code}")
+        #logger.info(f"Full API response for query '{query}': {response.text}")
+
         if response.status_code != 200:
             error_msg = f"API Error {response.status_code}: {response.text}"
             logger.error(error_msg)
             return {"status": "error", "error_message": error_msg}
-        
+
         results = response.json()
-        
+
         # Process and truncate results
         processed_results = []
         for result in results.get("results", []):
             # Truncate content if it exists
             if "content" in result and len(result["content"]) > 1000:
                 result["content"] = result["content"][:1000] + "... (content truncated)"
-            
+
             # Keep only essential fields
             processed_result = {
                 "title": result.get("title", ""),
@@ -244,14 +259,17 @@ def tavily_search(query: str, search_depth: str = "basic", max_results: int = 5)
                 "score": result.get("score", 0)
             }
             processed_results.append(processed_result)
-        
-        return {
+
+        final_response = {
             "status": "success",
             "query": query,
             "results": processed_results,
             "answer": results.get("answer", "")[:500] if results.get("answer") else ""  # Truncate answer
         }
-        
+
+        logger.info(f"Tavily search completed successfully for query: {query}")
+        return final_response
+
     except Exception as e:
         error_msg = f"Error in tavily_search: {str(e)}"
         logger.error(error_msg)
